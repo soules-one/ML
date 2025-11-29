@@ -60,6 +60,14 @@ class DecisionTree:
         self._max_depth = max_depth
         self._min_samples_split = min_samples_split
         self._min_samples_leaf = min_samples_leaf
+    
+    def get_params(self, deep: bool = True):
+        return {
+            "feature_types": self._feature_types,
+            "max_depth": self._max_depth,
+            "min_samples_split": self._min_samples_split,
+            "min_samples_leaf": self._min_samples_leaf,
+        }
 
     def _fit_node(self, sub_X, sub_y, node, depth=0):
         if ((self._max_depth is not None and depth >= self._max_depth) or \
