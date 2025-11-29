@@ -9,13 +9,6 @@ def find_best_split(feature_vector, target_vector):
     $R$ — множество объектов, $R_l$ и $R_r$ — объекты, попавшие в левое и правое поддерево,
      $H(R) = 1-p_1^2-p_0^2$, $p_1$, $p_0$ — доля объектов класса 1 и 0 соответственно.
 
-    Указания:
-    * Пороги, приводящие к попаданию в одно из поддеревьев пустого множества объектов, не рассматриваются.
-    * В качестве порогов, нужно брать среднее двух сосдених (при сортировке) значений признака
-    * Поведение функции в случае константного признака может быть любым.
-    * При одинаковых приростах Джини нужно выбирать минимальный сплит.
-    * За наличие в функции циклов балл будет снижен. Векторизуйте! :)
-
     :param feature_vector: вещественнозначный вектор значений признака
     :param target_vector: вектор классов объектов,  len(feature_vector) == len(target_vector)
 
@@ -26,13 +19,42 @@ def find_best_split(feature_vector, target_vector):
     :return gini_best: оптимальное значение критерия Джини (число)
     """
     # ╰( ͡° ͜ʖ ͡° )つ──☆*:・ﾟ
+    x = np.asarray(feature_vector)
+    y = np.asarray(target_vector)
+    order = np.argsort(x)
+    xs = x[order]
+    ys = y[order]
+    d = xs[1:] != xs[:-1]
+    thresholds = (xs[1:] + xs[:-1]) / 2.0
+    thresholds = thresholds[d]
+    if len(thresholds) == 0:
+        return np.array(()), np.array(()), None, None
+    n = len(xs)
+    idx = np.searchsorted(xs, thresholds, side="right") - 1
+    n_left = idx + 1
+    n_right = n - idx
+    ones = np.sum(ys)
+    ones_left = np.cumsum(ys)[idx]
+    ones_right = ones - ones_left
 
-    pass
+    p1_left = ones_right / n_left
+    p0_left = 1 - p1_left
+
+    p1_right = ones_right / n_right
+    p0_right = 1 - p1_right
+
+    H_left = 1 - p1_left ** 2 - p0_left ** 2 
+    H_right = 1 - p1_right ** 2 - p0_right ** 2 
+    ginis = -(n_left / n) * H_left - (n_right / n) * H_right
+    best_idx = np.argmax(ginis)
+    return thresholds, ginis, thresholds[best_idx], ginis[best_idx]
 
 
 class DecisionTree:
-    def __init__(self, feature_types, max_depth=None, min_samples_split=None, min_samples_leaf=None):
-        if np.any(list(map(lambda x: x != "real" and x != "categorical", feature_types))):
+    def __init__(self, feature_types, max_depth=None,
+                 min_samples_split=None, min_samples_leaf=None):
+        if np.any(list(map(lambda x: x != "real"
+                           and x != "categorical", feature_types))):
             raise ValueError("There is unknown feature type")
 
         self._tree = {}
