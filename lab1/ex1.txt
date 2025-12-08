@@ -1,0 +1,23 @@
+LoanAmount
+NetWorth
+JobTenure
+EDU_High School
+PURP_Home
+Age
+Experience
+ApplicationDate
+EDU_Doctorate
+UtilityBillsPaymentHistory
+OWN_Other
+SavingsAccountBalance
+PURP_Other
+NumberOfOpenCreditLines
+PaymentHistory
+Marital_Widowed
+EDU_Master
+CheckingAccountBalance
+NumberOfDependents
+OWN_Own
+PURP_Education
+AnnualIncome
+NumberOfCreditInquiries

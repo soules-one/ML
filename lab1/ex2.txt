@@ -1,0 +1,10 @@
+EXBankruptcyHistory_sq
+EXBankruptcyHistory_log
+EXBaseInterestRate_log
+EXBaseInterestRate_sqrt
+EXBankruptcyHistory_sqrt
+BaseInterestRate
+EXDebtToIncomeRatio_sqrt
+EXInterestRate_sq
+Marital_Single
+Marital_Married
