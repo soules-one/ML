@@ -394,21 +394,6 @@ if not fs.load("ex.txt"):
     fs.save("ex.txt")
 X = fs.transform(X)
 X_ = X
-exl = []
-X = featureExpander(X_, X_, Y, enable_ratio=True)
-fss = FeatureSelector()
-if not fss.load("ex6.txt"):
-    fss.fit(X, Y)
-    fss.save("ex6.txt")
-exl.extend(fss.exclude)
-X = featureExpander(X_, X_, Y, enable_poly=True)
-fss = FeatureSelector()
-if not fss.load("ex7.txt"):
-    fss.fit(X, Y)
-    fss.save("ex7.txt")
-exl.extend(fss.exclude)
-fss = FeatureSelector()
-fss.exclude = exl
 X = featureExpander(X_, X_, Y, enable_poly=True, enable_ratio=True)
 fss = FeatureSelector()
 fss.fit(X, Y)
