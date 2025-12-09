@@ -5,8 +5,8 @@ from sklearn.linear_model import LinearRegression, SGDRegressor
 from sklearn.metrics import mean_absolute_error
 from matplotlib import pyplot as plt
 
-TEST = pd.read_csv("/home/egor/dev/training/ML/ML/lab1/test.csv")
-TRAIN = pd.read_csv("/home/egor/dev/training/ML/ML/lab1/train.csv")
+TEST = pd.read_csv("test.csv")
+TRAIN = pd.read_csv("train.csv")
 
 
 def z_score_1d(x):
