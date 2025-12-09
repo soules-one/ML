@@ -414,6 +414,56 @@ class FeatureSelector:
         except:
             return False
 
+class FWFeatureSelector:
+    def __init__(self):
+        self.exclude = []
+    
+    def fit(self, X: pd.DataFrame, Y, eps=np.float128("1e-100")):
+        print(f"Before: {X.shape[1]} features")
+        y_ = Y.values
+        self.exclude = []
+        st = set(X.columns)
+        val = KValidator(LinReg, [{'norm': LinReg.Normalize.Z_Score}], KFold(5, 42))
+        pscore = None
+        wscore = np.inf
+        wf = None
+        cscore = np.inf
+        include = []
+        while pscore is None or ((pscore >= cscore) and np.abs(pscore - cscore) >= eps):
+            pscore = cscore
+            wscore = np.inf
+            wf = None
+            for feature in st:
+                x_ = X[include + [feature]]
+                score = val.cross_validate(x_, y_)[0]
+                if score < wscore:
+                    wscore = score
+                    wf = feature
+            cscore = wscore
+            print(f"score c {wf} = {wscore}. без - {pscore}")
+            include.append(wf)
+            st.discard(wf)
+        st.add(include.pop())
+        self.exclude = list(st)
+        print(f"After: {len(include)} features")
+
+    def transform(self, X: pd.DataFrame):
+        return X.drop(columns=self.exclude, errors="ignore")
+    
+    def save(self, name="excl.txt"):
+        with open(name, "w") as file:
+            for i in self.exclude:
+                file.write(i + '\n')
+    
+    def load(self, name="excl.txt"):
+        try:
+            with open(name, "r") as file:
+                for line in file:
+                    self.exclude.append(line.strip())
+            return True
+        except:
+            return False
+
 
 def featureExpander(X_O: pd.DataFrame,X: pd.DataFrame, Y, eps=0.1, enable_interactions=False, enable_ratio=False, enable_poly=False):
     from scipy.stats import boxcox
@@ -463,13 +513,13 @@ Y = df[target]
 XO = df.drop(columns=target)
 YO = df[target]
 
-fs = FeatureSelector()
+fs = FWFeatureSelector()
 if not fs.load("ex.txt"):
     fs.fit(X, Y)
     fs.save("ex.txt")
 X = fs.transform(X)
 X_ = X
 X = featureExpander(X_, X_, Y, enable_poly=True, enable_ratio=True)
-fss = FeatureSelector()
+fss = FWFeatureSelector()
 fss.fit(X, Y)
 fss.save("exf1.txt")

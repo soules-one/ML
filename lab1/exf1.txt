@@ -1,0 +1,9 @@
+InterestRate
+EXTotalAssets_bc
+LoanAmount
+InterestRate_x_BankruptcyHistory_sqrt
+EXTotalAssets_div_BankruptcyHistory
+EXTotalAssets_div_BaseInterestRate
+EXTotalDebtToIncomeRatio_div_InterestRate
+CreditScore_x_MonthlyIncome_sqrt
+EXBaseInterestRate_div_MonthlyLoanPayment
