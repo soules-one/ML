@@ -490,15 +490,15 @@ def featureExpander(X_O: pd.DataFrame,X: pd.DataFrame, Y, eps=0.1, enable_intera
                 d[f'EX{a}_x_{b}'] = X[a] * X[b]
                 d[f'EX{a}_plus_{b}'] = X[a] + X[b]
                 d[f'EX{a}_minus_{b}'] = X[a] - X[b]
-                d[f'EX{a}_|minus|_{b}'] = np.abs(X[a] - X[b])
 
             if enable_ratio:
                 d[f'EX{a}_div_{b}'] = X[a] / (X[b].abs() + 1e-6)
                 d[f'EX{b}_div_{a}'] = X[b] / (X[a].abs() + 1e-6)
 
             if enable_poly:
-                d[f'{a}_x_{b}_sqrt'] = np.sqrt(np.abs(X[a] * X[b]) + 1e-6)
-                d[f'{a}_x_{b}_log'] = np.log(np.abs(X[a] * X[b]) + 1)
+                d[f'EX{a}_x_{b}_sqrt'] = np.sqrt(np.abs(X[a] * X[b]) + 1e-6)
+                d[f'EX{a}_x_{b}_log'] = np.log(np.abs(X[a] * X[b]) + 1)
+                d[f'EX{a}_x_{b}_log'] = ((X[a] ** 2) * (X[b] ** 2))
     newdf = pd.DataFrame(d, index=X.index)
     X = pd.concat([X, newdf], axis=1)
     return X
@@ -523,17 +523,13 @@ YO = df[target]
 val = KValidator(LinRegL2, [{"norm": LinReg.Normalize.Z_Score, "alpha": 0.6}], KFold(5, 42))
 
 fs = FWFeatureSelector()
-X = corr_with_target(X, Y, 0.025)
-X = low_variance(X)
-if not fs.load("ex.txt"):
+if not fs.load("exx.txt"):
     fs.fit(X, Y)
-    fs.save("ex.txt")
+    fs.save("exx.txt")
 X = fs.transform(X)
 X_ = X
-X = featureExpander(X_, X_, Y, enable_poly=True, enable_ratio=True)
-X = corr_with_target(X, Y, 0.025)
-X = low_variance(X)
+X = featureExpander(X_, X_, Y, enable_poly=True, enable_ratio=True, enable_interactions=True)
 fss = FWFeatureSelector()
 fss.fit(X, Y)
-fss.save("exf2.txt")
+fss.save("exf3.txt")
 print(val.cross_validate(fss.transform(X), Y))
