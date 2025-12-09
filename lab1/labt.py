@@ -5,8 +5,8 @@ from sklearn.linear_model import LinearRegression, SGDRegressor
 from sklearn.metrics import mean_absolute_error
 from matplotlib import pyplot as plt
 
-TEST = pd.read_csv("test.csv")
-TRAIN = pd.read_csv("train.csv")
+TEST = pd.read_csv("/home/egor/dev/training/ML/ML/lab1/test.csv")
+TRAIN = pd.read_csv("/home/egor/dev/training/ML/ML/lab1/train.csv")
 
 
 def z_score_1d(x):
@@ -340,7 +340,7 @@ class KValidator:
 
 df = TRAIN
 df = df.dropna()  # избавляемся от неполных данных
-
+df = df[df["RiskScore"] <= 100]
 sc = np.abs(z_score_1d(df["RiskScore"]))
 df = df[sc < 3]
 
@@ -374,12 +374,14 @@ class FeatureSelector:
         y_ = Y.values
         self.exclude = []
         st = set(X.columns)
-        val = KValidator(LinReg, [{'norm': LinReg.Normalize.Z_Score}], KFold(5, 42))
+        val = KValidator(LinRegL2, [{'norm': LinReg.Normalize.Z_Score, "alpha": 0.6}], KFold(5, 42))
         pscore = None
         wscore = np.inf
+        bscore = np.inf
         wf = None
+        miss = 0
         cscore = val.cross_validate(X.values, Y.values)[0]
-        while pscore is None or (len(X.columns) > 2 and (pscore >= cscore) and np.abs(pscore - cscore) >= eps):
+        while pscore is None or (miss < 3 and len(X.columns) > 2) or ( len(X.columns) > 2 and (bscore >= cscore)):
             pscore = cscore
             wscore = np.inf
             wf = None
@@ -392,10 +394,17 @@ class FeatureSelector:
             cscore = wscore
             print(f"score без {wf} = {wscore}. С - {pscore}")
             self.exclude.append(wf)
+            bscore = min(bscore, cscore)
+            if bscore < cscore:
+                miss += 1
+                print(f"miss - {miss}")
+            else:
+                miss = 0
             st.discard(wf)
             X = X.drop(columns=wf)
-        self.exclude.pop()
-        print(f"After: {X.shape[1] + 1} features")
+        for i in range(miss):
+            self.exclude.pop()
+        print(f"After: {X.shape[1] + miss} features")
 
     def transform(self, X: pd.DataFrame):
         return X.drop(columns=self.exclude, errors="ignore")
@@ -474,6 +483,65 @@ class FWFeatureSelector:
             return False
 
 
+class FeatureWeights:
+    def __init__(self):
+        self.exclude = []
+    
+    def fit(self, X: pd.DataFrame, Y, eps=np.float128("1e-100"), pp=5000):
+        n = X.shape[1]
+        print(f"Before: {n} features")
+        self.exclude = []
+        pscore = None
+        bscore = None
+        val = KValidator(LinRegL2, [{"norm": LinReg.Normalize.Z_Score, "alpha": 0.6}], KFold(5, 42))
+        model = LinRegL2(norm=LinReg.Normalize.Z_Score, alpha=10)
+        model.fit(X.values[:pp, ], Y.values[:pp])
+        miss = 0
+        cscore = val.cross_validate(X, Y)[0]
+        bscore = cscore
+        while pscore is None or (miss < 3 and n > 2) or ( n > 2 and (bscore >= cscore)):
+            pscore = cscore
+            ww = np.inf
+            idx = None
+            for i in range(n):
+                if np.abs(model.W[i]) < ww:
+                    idx = i
+                    ww = np.abs(model.W[i])
+            self.exclude.append(X.columns[idx])
+            n -= 1
+            X = X.drop(columns=X.columns[idx])
+            model = LinRegL2(norm=LinReg.Normalize.Z_Score, alpha=0.6)
+            model.fit(X.values[:pp, ], Y.values[:pp])
+            cscore = val.cross_validate(X, Y)[0]
+            bscore = min(cscore, bscore)
+            if bscore < cscore:
+                miss += 1
+                print(f"miss - {miss}")
+            else:
+                miss = 0
+            print(f"score без {X.columns[idx]} = {cscore}. С - {pscore}")
+        for i in range(miss):
+            self.exclude.pop()
+        print(f"After: {n + 1} features")
+
+    def transform(self, X: pd.DataFrame):
+        return X.drop(columns=self.exclude, errors="ignore")
+    
+    def save(self, name="excl.txt"):
+        with open(name, "w") as file:
+            for i in self.exclude:
+                file.write(i + '\n')
+    
+    def load(self, name="excl.txt"):
+        try:
+            with open(name, "r") as file:
+                for line in file:
+                    self.exclude.append(line.strip())
+            return True
+        except:
+            return False
+
+
 def featureExpander(X_O: pd.DataFrame,X: pd.DataFrame, Y, eps=0.1, enable_ratio=False, enable_poly=False):
     from scipy.stats import boxcox
     corrs = X_O.corrwith(Y).abs().sort_values(ascending=False)
@@ -484,19 +552,14 @@ def featureExpander(X_O: pd.DataFrame,X: pd.DataFrame, Y, eps=0.1, enable_ratio=
     for i in range(len(candidates)):
         col = candidates[i]
         if df[col].min() > 0:
-            d[f'EX{col}_bc'], lmd = boxcox(df[col].values)
+            d[f'EX{col}_bc'], lmd = boxcox(X[col].values)
         else:
-            d[f'EX{col}_bc'], lmd = boxcox(df[col].values - df[col].min() + 1e-6)
-        if lmd > 0 and np.abs(lmd - 3) > eps:
-            d[f'EX{col}_cb'] = X[col] ** 3
-        if lmd < 0 and np.abs(lmd + 1) > eps:
-            d[f'EX{col}_inv'] = 1 / (X[col] + 1e-6)
-        if lmd > 0 and np.abs(lmd - 2) > eps:
-            d[f'EX{col}_sq'] = X[col] ** 2
-        if lmd > 0 and np.abs(lmd - 0.5) > eps:
-            d[f'EX{col}_sqrt'] = np.sqrt(np.abs(X[col]) + 1e-6)
-        if np.abs(lmd) > eps:
-            d[f'EX{col}_log'] = np.log(np.abs(X[col]) + 1e-6)
+            d[f'EX{col}_bc'], lmd = boxcox(X[col].values - X[col].min() + 1e-6)
+        d[f'EX{col}_cb'] = X[col] ** 3
+        d[f'EX{col}_inv'] = 1 / (X[col] + 1e-6)
+        d[f'EX{col}_sq'] = X[col] ** 2
+        d[f'EX{col}_sqrt'] = np.sqrt(np.abs(X[col]) + 1e-6)
+        d[f'EX{col}_log'] = np.log(np.abs(X[col]) + 1e-6)
 
         if X_O[col].nunique() > 2:
             ln = np.linspace(X_O[col].min(), X_O[col].max(), 4)
@@ -521,7 +584,7 @@ def featureExpander(X_O: pd.DataFrame,X: pd.DataFrame, Y, eps=0.1, enable_ratio=
 def corr_with_target(X: pd.DataFrame, y, thr=0.05):
     corrs = X.apply(lambda col: np.abs(np.corrcoef(col, y)[0, 1]))
     print(f'less - {list(corrs[corrs <= thr].index)}')
-    return X[corrs[corrs > thr].index]
+    return corrs[corrs > thr].index
 
 def pair_corr(X: pd.DataFrame, Y, thr=0.5):
     corrs = X.corrwith(Y).abs()
@@ -558,16 +621,45 @@ YO = df[target]
 
 val = KValidator(LinRegL2, [{"norm": LinReg.Normalize.Z_Score, "alpha": 0.6}], KFold(5, 42))
 
-fs = FWFeatureSelector()
-X = pair_corr(X, Y, 0.8)
+fs = FeatureSelector()
 if not fs.load("exx.txt"):
     fs.fit(X, Y)
     fs.save("exx.txt")
 X = fs.transform(X)
 X_ = X
 X = featureExpander(X_, X_, Y, enable_ratio=True, enable_poly=True)
-X = corr_with_target(X, Y, 0.025)
-fss = FWFeatureSelector()
-fss.fit(X, Y)
-fss.save("exf3.txt")
+X = X[corr_with_target(X, Y, 0.001)]
+fss = FeatureSelector()
+if True: #not fss.load():
+    fss.fit(X, Y, 9000)
+    fss.save()
 print(val.cross_validate(fss.transform(X), Y))
+def answer():
+    model = LinRegL2(norm=LinReg.Normalize.Z_Score, alpha=0.6)
+
+    XO = df.drop(columns=target)
+    YO = df[target]
+    X = df.drop(columns=target)
+    Y = df[target]
+    ffs = FWFeatureSelector()
+    ffs.load("exx.txt")
+    X_T = TEST.drop(columns="ID")
+    X_T = transform_df(X_T)
+    X = ffs.transform(X)
+    X_T = ffs.transform(X_T)
+    X_T = X_T[corr_with_target(X, Y)]
+    X = X[corr_with_target(X, Y)]
+    ffs = FWFeatureSelector()
+    ffs.load()
+    X_T = featureExpander(X, X_T, Y, enable_poly=True, enable_ratio=True)
+    X_T = fss.transform(X_T)
+    X = featureExpander(X, X, Y, enable_poly=True, enable_ratio=True)
+    X = fss.transform(X)
+    model.fit(X.values, Y.values)
+    Y_T = model.predict(X_T.values)
+
+    odf = pd.DataFrame({"ID": range(5000), target: Y_T})
+    print(odf.info())
+    odf.to_csv('my_data.csv', index=False) 
+
+#answer()
