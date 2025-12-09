@@ -399,15 +399,9 @@ if not fss.load("ex4.txt"):
     fss.fit(X, Y)
     fss.save("ex4.txt")
 exl.extend(fss.exclude)
-X = featureExpander(X_, X_, Y, enable_interactions=True)
-fss = FeatureSelector()
-if not fss.load("ex5.txt"):
-    fss.fit(X, Y)
-    fss.save("ex5.txt")
-exl.extend(fss.exclude)
 fss = FeatureSelector()
 fss.exclude = exl
-X = featureExpander(X_, X_, Y, enable_interactions=True, enable_poly=True, enable_ratio=True)
+X = featureExpander(X_, X_, Y, enable_poly=True, enable_ratio=True)
 X = fss.transform(X)
 fss = FeatureSelector()
 fss.fit(X, Y)
