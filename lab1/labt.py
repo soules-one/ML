@@ -478,11 +478,11 @@ def featureExpander(X_O: pd.DataFrame,X: pd.DataFrame, Y, eps=0.1, enable_ratio=
             d[f'EX{col}_bc'], lmd = boxcox(df[col].values)
         else:
             d[f'EX{col}_bc'], lmd = boxcox(df[col].values - df[col].min() + 1)
-        if np.abs(lmd - 2) > eps:
+        if lmd > 0 and np.abs(lmd - 2) > eps:
             d[f'EX{col}_sq'] = X[col] ** 2
-        if np.abs(lmd - 0.5) > eps:
+        if lmd > 0 and np.abs(lmd - 0.5) > eps:
             d[f'EX{col}_sqrt'] = np.sqrt(np.abs(X[col]) + 1e-6)
-        if np.abs(lmd - 0) > eps:
+        if np.abs(lmd) > eps:
             d[f'EX{col}_log'] = np.log(np.abs(X[col]) + 1)
         for j in range(i+1, len(candidates)):
             a, b = col, candidates[j]
