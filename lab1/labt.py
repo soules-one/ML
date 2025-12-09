@@ -503,6 +503,13 @@ def featureExpander(X_O: pd.DataFrame,X: pd.DataFrame, Y, eps=0.1, enable_intera
     X = pd.concat([X, newdf], axis=1)
     return X
 
+def corr_with_target(X: pd.DataFrame, y, thr=0.05):
+    corrs = X.apply(lambda col: np.abs(np.corrcoef(col, y)[0, 1]))
+    return X[corrs[corrs > thr].index]
+
+def low_variance(X: pd.DataFrame, thr=1e-5):
+    variances = X.var()
+    return X[variances[variances > thr].index]
 
 import sklearn.metrics as metrics
 
@@ -514,12 +521,16 @@ XO = df.drop(columns=target)
 YO = df[target]
 
 fs = FWFeatureSelector()
+X = corr_with_target(X, Y, 0.025)
+X = low_variance(X)
 if not fs.load("ex.txt"):
     fs.fit(X, Y)
     fs.save("ex.txt")
 X = fs.transform(X)
 X_ = X
 X = featureExpander(X_, X_, Y, enable_poly=True, enable_ratio=True)
+X = corr_with_target(X, Y, 0.025)
+X = low_variance(X)
 fss = FWFeatureSelector()
 fss.fit(X, Y)
-fss.save("exf1.txt")
+fss.save("exf2.txt")

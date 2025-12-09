@@ -1,21 +1,3 @@
-ApplicationDate
-AnnualIncome
-PURP_Home
-OWN_Own
-NumberOfCreditInquiries
-Age
-EDU_High School
-NumberOfDependents
-SavingsAccountBalance
-UtilityBillsPaymentHistory
-NetWorth
-JobTenure
-CheckingAccountBalance
-Marital_Widowed
 Experience
-PURP_Other
-PaymentHistory
-OWN_Other
-EDU_Doctorate
-NumberOfOpenCreditLines
-EDU_Master
+AnnualIncome
+Age
