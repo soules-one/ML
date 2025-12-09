@@ -402,8 +402,7 @@ exl.extend(fss.exclude)
 fss = FeatureSelector()
 fss.exclude = exl
 X = featureExpander(X_, X_, Y, enable_poly=True, enable_ratio=True)
-X = fss.transform(X)
 fss = FeatureSelector()
 fss.fit(X, Y)
-fss.save("exf.txt")
+fss.save("exf1.txt")
 
