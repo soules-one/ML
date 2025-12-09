@@ -520,6 +520,8 @@ Y = df[target]
 XO = df.drop(columns=target)
 YO = df[target]
 
+val = KValidator(LinRegL2, [{"norm": LinReg.Normalize.Z_Score, "alpha": 0.6}], KFold(5, 42))
+
 fs = FWFeatureSelector()
 X = corr_with_target(X, Y, 0.025)
 X = low_variance(X)
@@ -534,3 +536,4 @@ X = low_variance(X)
 fss = FWFeatureSelector()
 fss.fit(X, Y)
 fss.save("exf2.txt")
+print(val.cross_validate(fss.transform(X), Y))
