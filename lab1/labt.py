@@ -5,8 +5,8 @@ from sklearn.linear_model import LinearRegression, SGDRegressor
 from sklearn.metrics import mean_absolute_error
 from matplotlib import pyplot as plt
 
-TEST = pd.read_csv("https://raw.githubusercontent.com/soules-one/ML/refs/heads/main/lab1/test.csv")
-TRAIN = pd.read_csv("https://raw.githubusercontent.com/soules-one/ML/refs/heads/main/lab1/train.csv")
+TEST = pd.read_csv("test.csv")
+TRAIN = pd.read_csv("train.csv")
 
 
 def z_score_1d(x):
@@ -341,15 +341,23 @@ class FeatureSelector:
 
 
 def featureExpander(X_O: pd.DataFrame,X: pd.DataFrame, Y, eps=0.1, enable_interactions=False, enable_ratio=False, enable_poly=False):
+    from scipy.stats import boxcox
     corrs = X_O.corrwith(Y).abs().sort_values(ascending=False)
     candidates = corrs[corrs > eps].index
     print("Создаю признаки от", candidates)
     d = {}
     for i in range(len(candidates)):
         col = candidates[i]
-        d[f'EX{col}_sq'] = X[col] ** 2
-        d[f'EX{col}_sqrt'] = np.sqrt(np.abs(X[col]) + 1e-6)
-        d[f'EX{col}_log'] = np.log(np.abs(X[col]) + 1)
+        if df[col].min() > 0:
+            d[f'EX{col}_bc'], lmd = boxcox(df[col].values)
+        else:
+            d[f'EX{col}_bc'], lmd = boxcox(df[col].values - df[col].min() + 1)
+        if np.abs(lmd - 2) > eps:
+            d[f'EX{col}_sq'] = X[col] ** 2
+        if np.abs(lmd - 0.5) > eps:
+            d[f'EX{col}_sqrt'] = np.sqrt(np.abs(X[col]) + 1e-6)
+        if np.abs(lmd - 0) > eps:
+            d[f'EX{col}_log'] = np.log(np.abs(X[col]) + 1)
         for j in range(i+1, len(candidates)):
             a, b = col, candidates[j]
 
@@ -381,23 +389,23 @@ XO = df.drop(columns=target)
 YO = df[target]
 
 fs = FeatureSelector()
-if not fs.load("ex0.txt"):
+if not fs.load("ex.txt"):
     fs.fit(X, Y)
-    fs.save("ex0.txt")
+    fs.save("ex.txt")
 X = fs.transform(X)
 X_ = X
 exl = []
 X = featureExpander(X_, X_, Y, enable_ratio=True)
 fss = FeatureSelector()
-if not fss.load("ex3.txt"):
+if not fss.load("ex6.txt"):
     fss.fit(X, Y)
-    fss.save("ex3.txt")
+    fss.save("ex6.txt")
 exl.extend(fss.exclude)
 X = featureExpander(X_, X_, Y, enable_poly=True)
 fss = FeatureSelector()
-if not fss.load("ex4.txt"):
+if not fss.load("ex7.txt"):
     fss.fit(X, Y)
-    fss.save("ex4.txt")
+    fss.save("ex7.txt")
 exl.extend(fss.exclude)
 fss = FeatureSelector()
 fss.exclude = exl
