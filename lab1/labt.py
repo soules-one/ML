@@ -426,10 +426,17 @@ class FWFeatureSelector:
         val = KValidator(LinReg, [{'norm': LinReg.Normalize.Z_Score}], KFold(5, 42))
         pscore = None
         wscore = np.inf
+        bscore = np.inf
         wf = None
         cscore = np.inf
         include = []
-        while pscore is None or ((pscore >= cscore) and np.abs(pscore - cscore) >= eps):
+        miss = 0
+        while pscore is None or (miss < 3 and st) or ((pscore >= cscore) and np.abs(pscore - cscore) >= eps and st):
+            if cscore > bscore:
+                miss += 1
+                print(f"miss - {miss}")
+            else:
+                miss = 0
             pscore = cscore
             wscore = np.inf
             wf = None
@@ -443,7 +450,9 @@ class FWFeatureSelector:
             print(f"score c {wf} = {wscore}. без - {pscore}")
             include.append(wf)
             st.discard(wf)
-        st.add(include.pop())
+            bscore = min(cscore, bscore)
+        for i in range(miss):
+            st.add(include.pop())
         self.exclude = list(st)
         print(f"After: {len(include)} features")
 
@@ -469,7 +478,7 @@ def featureExpander(X_O: pd.DataFrame,X: pd.DataFrame, Y, eps=0.1, enable_ratio=
     from scipy.stats import boxcox
     corrs = X_O.corrwith(Y).abs().sort_values(ascending=False)
     candidates = corrs[corrs > eps].index
-    candidates = candidates[:min(10, len(candidates))]
+    candidates = candidates
     print("Создаю признаки от", candidates)
     d = {}
     for i in range(len(candidates)):
@@ -477,16 +486,26 @@ def featureExpander(X_O: pd.DataFrame,X: pd.DataFrame, Y, eps=0.1, enable_ratio=
         if df[col].min() > 0:
             d[f'EX{col}_bc'], lmd = boxcox(df[col].values)
         else:
-            d[f'EX{col}_bc'], lmd = boxcox(df[col].values - df[col].min() + 1)
+            d[f'EX{col}_bc'], lmd = boxcox(df[col].values - df[col].min() + 1e-6)
+        if lmd > 0 and np.abs(lmd - 3) > eps:
+            d[f'EX{col}_cb'] = X[col] ** 3
+        if lmd < 0 and np.abs(lmd + 1) > eps:
+            d[f'EX{col}_inv'] = 1 / (X[col] + 1e-6)
         if lmd > 0 and np.abs(lmd - 2) > eps:
             d[f'EX{col}_sq'] = X[col] ** 2
         if lmd > 0 and np.abs(lmd - 0.5) > eps:
             d[f'EX{col}_sqrt'] = np.sqrt(np.abs(X[col]) + 1e-6)
         if np.abs(lmd) > eps:
-            d[f'EX{col}_log'] = np.log(np.abs(X[col]) + 1)
+            d[f'EX{col}_log'] = np.log(np.abs(X[col]) + 1e-6)
+
+        if X_O[col].nunique() > 2:
+            ln = np.linspace(X_O[col].min(), X_O[col].max(), 4)
+            d[f'EX{col}_1'] = (X[col] < ln[1]) + 1
+            d[f'EX{col}_2'] = ((X[col] >= ln[1]) & (X[col] < ln[2])) + 1
+            d[f'EX{col}_3'] = (X[col] >= ln[3]) + 1
         for j in range(i+1, len(candidates)):
             a, b = col, candidates[j]
-
+            d[f'EX{a}_plus_{b}'] = X[a] + X[b]
             if enable_ratio:
                 d[f'EX{a}_div_{b}'] = X[a] / (X[b].abs() + 1e-6)
                 d[f'EX{b}_div_{a}'] = X[b] / (X[a].abs() + 1e-6)
@@ -501,7 +520,28 @@ def featureExpander(X_O: pd.DataFrame,X: pd.DataFrame, Y, eps=0.1, enable_ratio=
 
 def corr_with_target(X: pd.DataFrame, y, thr=0.05):
     corrs = X.apply(lambda col: np.abs(np.corrcoef(col, y)[0, 1]))
+    print(f'less - {list(corrs[corrs <= thr].index)}')
     return X[corrs[corrs > thr].index]
+
+def pair_corr(X: pd.DataFrame, Y, thr=0.5):
+    corrs = X.corrwith(Y).abs()
+    excl = set()
+    for i in range(len(X.columns)):
+        col = X.columns[i]
+        cc = X.drop(columns=col).corrwith(X[col]).abs()
+        for el in cc.index:
+            if cc[el] < thr:
+                continue
+            if el in excl:
+                continue
+            if corrs[col] < corrs[el]:
+                excl.add(col)
+                break
+            else:
+                excl.add(el)
+    print(f'excl - {excl}')
+    return X.drop(columns=list(excl))
+
 
 def low_variance(X: pd.DataFrame, thr=1e-5):
     variances = X.var()
@@ -519,13 +559,14 @@ YO = df[target]
 val = KValidator(LinRegL2, [{"norm": LinReg.Normalize.Z_Score, "alpha": 0.6}], KFold(5, 42))
 
 fs = FWFeatureSelector()
+X = pair_corr(X, Y, 0.8)
 if not fs.load("exx.txt"):
     fs.fit(X, Y)
     fs.save("exx.txt")
 X = fs.transform(X)
 X_ = X
-X = featureExpander(X_, X_, Y, enable_poly=True, enable_ratio=True)
-X = corr_with_target(X, Y)
+X = featureExpander(X_, X_, Y, enable_ratio=True, enable_poly=True)
+X = corr_with_target(X, Y, 0.025)
 fss = FWFeatureSelector()
 fss.fit(X, Y)
 fss.save("exf3.txt")
