@@ -295,7 +295,7 @@ class LOO:
     def __init__(self, r_state=None):
         if (r_state is not None and (not isinstance(r_state, int) or r_state < 0)):
             raise ValueError
-        if r_state is not None  :
+        if r_state is not None:
             self.seed = r_state
         else:
             self.seed = np.random.randint(0, 1000000)
@@ -465,10 +465,11 @@ class FWFeatureSelector:
             return False
 
 
-def featureExpander(X_O: pd.DataFrame,X: pd.DataFrame, Y, eps=0.1, enable_interactions=False, enable_ratio=False, enable_poly=False):
+def featureExpander(X_O: pd.DataFrame,X: pd.DataFrame, Y, eps=0.1, enable_ratio=False, enable_poly=False):
     from scipy.stats import boxcox
     corrs = X_O.corrwith(Y).abs().sort_values(ascending=False)
     candidates = corrs[corrs > eps].index
+    candidates = candidates[:min(10, len(candidates))]
     print("Создаю признаки от", candidates)
     d = {}
     for i in range(len(candidates)):
@@ -485,11 +486,6 @@ def featureExpander(X_O: pd.DataFrame,X: pd.DataFrame, Y, eps=0.1, enable_intera
             d[f'EX{col}_log'] = np.log(np.abs(X[col]) + 1)
         for j in range(i+1, len(candidates)):
             a, b = col, candidates[j]
-
-            if enable_interactions:
-                d[f'EX{a}_x_{b}'] = X[a] * X[b]
-                d[f'EX{a}_plus_{b}'] = X[a] + X[b]
-                d[f'EX{a}_minus_{b}'] = X[a] - X[b]
 
             if enable_ratio:
                 d[f'EX{a}_div_{b}'] = X[a] / (X[b].abs() + 1e-6)
@@ -528,7 +524,7 @@ if not fs.load("exx.txt"):
     fs.save("exx.txt")
 X = fs.transform(X)
 X_ = X
-X = featureExpander(X_, X_, Y, enable_poly=True, enable_ratio=True, enable_interactions=True)
+X = featureExpander(X_, X_, Y, enable_poly=True, enable_ratio=True)
 X = corr_with_target(X, Y)
 fss = FWFeatureSelector()
 fss.fit(X, Y)
