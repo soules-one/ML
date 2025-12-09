@@ -299,7 +299,7 @@ class FeatureSelector:
         y_ = Y.values
         self.exclude = []
         st = set(X.columns)
-        val = KValidator(LinReg, [{'norm': LinReg.Normalize.Z_Score}], KFold(100, 42))
+        val = KValidator(LinReg, [{'norm': LinReg.Normalize.Z_Score}], KFold(20, 42))
         pscore = None
         wscore = np.inf
         wf = None
