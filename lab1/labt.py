@@ -494,7 +494,7 @@ def featureExpander(X_O: pd.DataFrame,X: pd.DataFrame, Y, eps=0.1, enable_ratio=
             if enable_poly:
                 d[f'EX{a}_x_{b}_sqrt'] = np.sqrt(np.abs(X[a] * X[b]) + 1e-6)
                 d[f'EX{a}_x_{b}_log'] = np.log(np.abs(X[a] * X[b]) + 1)
-                d[f'EX{a}_x_{b}_log'] = ((X[a] ** 2) * (X[b] ** 2))
+                d[f'EX{a}^2_x_{b}^2'] = ((X[a] ** 2) * (X[b] ** 2))
     newdf = pd.DataFrame(d, index=X.index)
     X = pd.concat([X, newdf], axis=1)
     return X
