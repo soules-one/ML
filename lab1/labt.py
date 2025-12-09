@@ -529,6 +529,7 @@ if not fs.load("exx.txt"):
 X = fs.transform(X)
 X_ = X
 X = featureExpander(X_, X_, Y, enable_poly=True, enable_ratio=True, enable_interactions=True)
+X = corr_with_target(X, Y)
 fss = FWFeatureSelector()
 fss.fit(X, Y)
 fss.save("exf3.txt")
