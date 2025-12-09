@@ -19,13 +19,13 @@ def z_score_1d(x):
 def z_score(X):
     mn = np.mean(X, axis=0)
     st = np.std(X, axis=0)
-    st[st == 0] = 1
+    st[st == 0] = 1e-6
 
     return (X - mn) / st, [mn, st]
 
 
 def z_scoreP(X, mn, st):
-    st[st == 0] = 1
+    st[st == 0] = 1e-6
     return (X - mn) / st
 
 
@@ -186,6 +186,81 @@ class LinReg():
             raise ValueError
         return (X @ self.W).flatten()
 
+class LinRegL2():
+    class FType:
+        An = 1
+        GD = 2
+        SGD = 3
+    class Normalize:
+        No_Norm = 0
+        Z_Score = 1
+        Min_Max = 2
+
+    def __init__(self, f=FType.An, norm=Normalize.No_Norm, eps=1e-10, 
+                 epochs=None, step=None, alpha=0.0):
+        if (
+            f not in [self.FType.An, self.FType.GD, self.FType.SGD] or
+            norm not in [self.Normalize.No_Norm, self.Normalize.Min_Max, self.Normalize.Z_Score]
+            ):
+            raise ValueError
+        self.W = None
+        self.n = 0
+        self.nt = norm
+        self.f = f
+        self.eps = eps
+        self.epochs = epochs
+        self.step = step
+        self.norm = None
+        self.alpha = alpha
+    
+    def fit(self, X, y):
+        t = np.empty_like(X)
+        if X.shape[0] != len(y):
+            raise ValueError
+        self.n = len(y)
+        norm = self.nt
+        if norm != self.Normalize.No_Norm:
+            if norm == self.Normalize.Z_Score:
+                X, self.norm = z_score(X)
+            else:
+                X, self.norm = min_max(X)
+        X = np.hstack((np.ones((self.n, 1)), X))
+        m = X.shape[1]
+        self.W = np.random.randn(m) * 0.01
+        f = self.f
+        step = self.step
+        eps = self.eps
+        epochs = self.epochs
+        alpha = self.alpha
+
+        if f == self.FType.An:
+            try:
+                XTX = X.T @ X
+                reg_matrix = np.eye(m)
+                reg_matrix[0, 0] = 0
+                self.W = np.linalg.solve(XTX + alpha * reg_matrix, X.T @ y)
+            except np.linalg.LinAlgError:
+                XTX = X.T @ X
+                reg_matrix = np.eye(m)
+                reg_matrix[0, 0] = 0
+                A = XTX + alpha * reg_matrix
+                Q, R = np.linalg.qr(A, mode='reduced')
+                self.W = np.linalg.lstsq(R, Q.T @ (X.T @ y), rcond=None)[0]
+        else:
+            raise ValueError
+    
+    def predict(self, X):
+        X = np.array(X)
+        if self.nt != self.Normalize.No_Norm:
+            if self.nt == self.Normalize.Z_Score:
+                X = z_scoreP(X, *self.norm)
+            else:
+                X = min_maxP(X, *self.norm)
+        X = np.hstack((np.ones((X.shape[0], 1)), X))
+        if self.W is None or X.shape[1] != self.W.shape[0]:
+            raise ValueError
+        return (X @ self.W).flatten()
+
 class KFold:
     def __init__(self, n, r_state=None):
         if n < 2 or (r_state is not None and (not isinstance(r_state, int) or r_state < 0)):
@@ -299,7 +374,7 @@ class FeatureSelector:
         y_ = Y.values
         self.exclude = []
         st = set(X.columns)
-        val = KValidator(LinReg, [{'norm': LinReg.Normalize.Z_Score}], KFold(20, 42))
+        val = KValidator(LinReg, [{'norm': LinReg.Normalize.Z_Score}], KFold(5, 42))
         pscore = None
         wscore = np.inf
         wf = None
@@ -398,4 +473,3 @@ X = featureExpander(X_, X_, Y, enable_poly=True, enable_ratio=True)
 fss = FeatureSelector()
 fss.fit(X, Y)
 fss.save("exf1.txt")
-
