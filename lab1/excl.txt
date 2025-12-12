@@ -1,3 +1,0 @@
-EXTotalAssets_plus_NetWorth
-EXTotalAssets_div_NetWorth
-EXNetWorth_div_TotalAssets

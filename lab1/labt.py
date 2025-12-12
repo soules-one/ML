@@ -261,6 +261,50 @@ class LinRegL2():
             raise ValueError
         return (X @ self.W).flatten()
 
+
+class LinRegL1(LinReg):
+    def __init__(self, lam=0.1, **kw):
+        super().__init__(f=self.FType.GD, **kw)
+        self.lam = lam
+
+    def fit(self, X, y):
+        X = np.asarray(X, float)
+        y = np.asarray(y, float)
+
+        if self.nt != self.Normalize.No_Norm:
+            if self.nt == self.Normalize.Z_Score:
+                X, self.norm = z_score(X)
+            else:
+                X, self.norm = min_max(X)
+
+        self.n = len(y)
+        X = np.hstack((np.ones((self.n, 1)), X))
+        m = X.shape[1]
+
+        self.W = np.random.randn(m) * 0.01
+
+        epochs = self.epochs if self.epochs is not None else 1000
+        step = self.step if self.step is not None else 1e-3
+
+        for k in range(epochs):
+            p = self.W.copy()
+
+            curr = X @ self.W
+            grad_mse = (1/self.n) * (X.T @ (curr - y))
+
+
+            grad_l1 = self.lam * np.sign(self.W)
+            grad_l1[0] = 0  
+
+            grad = grad_mse + grad_l1
+            self.W -= step * grad
+
+            if np.linalg.norm(self.W - p) < self.eps:
+                break
+
+        return self
+    
+
 class KFold:
     def __init__(self, n, r_state=None):
         if n < 2 or (r_state is not None and (not isinstance(r_state, int) or r_state < 0)):
@@ -427,12 +471,12 @@ class FWFeatureSelector:
     def __init__(self):
         self.exclude = []
     
-    def fit(self, X: pd.DataFrame, Y, eps=np.float128("1e-100")):
+    def fit(self, X: pd.DataFrame, Y, eps=np.float128("1e-20")):
         print(f"Before: {X.shape[1]} features")
         y_ = Y.values
         self.exclude = []
         st = set(X.columns)
-        val = KValidator(LinReg, [{'norm': LinReg.Normalize.Z_Score}], KFold(5, 42))
+        folds = KFold(5, 42).create_splits(X, Y)[0]
         pscore = None
         wscore = np.inf
         bscore = np.inf
@@ -450,8 +494,15 @@ class FWFeatureSelector:
             wscore = np.inf
             wf = None
             for feature in st:
+                score = float(0)
                 x_ = X[include + [feature]]
-                score = val.cross_validate(x_, y_)[0]
+                for fold in folds:
+                    xtr, ytr = x_[fold[0]], Y[fold[0]]
+                    xte, yte = x_[fold[1]], Y[fold[1]]
+                    model = LinReg(norm=LinReg.Normalize.Z_Score)
+                    model.fit(xtr.values, ytr.values)
+                    score += MSE(yte.values, model.predict(xte.values))
+                score /= len(folds)
                 if score < wscore:
                     wscore = score
                     wf = feature
@@ -493,7 +544,7 @@ class FeatureWeights:
         self.exclude = []
         pscore = None
         bscore = None
-        val = KValidator(LinRegL2, [{"norm": LinReg.Normalize.Z_Score, "alpha": 0.6}], KFold(5, 42))
+        val = KValidator(LinRegL2, [{"norm": LinReg.Normalize.Z_Score}], KFold(5, 42))
         model = LinRegL2(norm=LinReg.Normalize.Z_Score, alpha=10)
         model.fit(X.values[:pp, ], Y.values[:pp])
         miss = 0
@@ -619,18 +670,21 @@ Y = df[target]
 XO = df.drop(columns=target)
 YO = df[target]
 
-val = KValidator(LinRegL2, [{"norm": LinReg.Normalize.Z_Score, "alpha": 0.6}], KFold(5, 42))
+val = KValidator(LinReg, [{"norm": LinReg.Normalize.Z_Score,}], KFold(5, 42))
 
-fs = FeatureSelector()
+fs = FWFeatureSelector()
+print(val.cross_validate(X, Y))
 if not fs.load("exx.txt"):
     fs.fit(X, Y)
     fs.save("exx.txt")
 X = fs.transform(X)
 X_ = X
+print(val.cross_validate(X, Y))
 X = featureExpander(X_, X_, Y, enable_ratio=True, enable_poly=True)
 X = X[corr_with_target(X, Y, 0.001)]
-fss = FeatureSelector()
-if True: #not fss.load():
+print(val.cross_validate(X, Y))
+fss = FWFeatureSelector()
+if not fss.load():
     fss.fit(X, Y, 9000)
     fss.save()
 print(val.cross_validate(fss.transform(X), Y))
@@ -662,4 +716,4 @@ def answer():
     print(odf.info())
     odf.to_csv('my_data.csv', index=False) 
 
-#answer()
+answer()
