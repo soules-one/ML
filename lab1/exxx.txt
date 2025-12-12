@@ -1,0 +1,26 @@
+NumberOfOpenCreditLines
+PURP_Other
+Marital_Single
+Marital_Married
+EDU_Doctorate
+UtilityBillsPaymentHistory
+Marital_Widowed
+NetWorth
+SavingsAccountBalance
+BaseInterestRate
+Experience
+PURP_Debt Consolidation
+CheckingAccountBalance
+PURP_Education
+NumberOfDependents
+PaymentHistory
+Age
+NumberOfCreditInquiries
+ApplicationDate
+JobTenure
+OWN_Own
+EDU_Master
+OWN_Other
+PURP_Home
+EDU_High School
+AnnualIncome
