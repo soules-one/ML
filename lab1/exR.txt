@@ -1,0 +1,20 @@
+NumberOfDependents
+PURP_Home
+CheckingAccountBalance
+OWN_Other
+NumberOfCreditInquiries
+Experience
+Marital_Widowed
+EDU_High School
+SavingsAccountBalance
+NetWorth
+ApplicationDate
+NumberOfOpenCreditLines
+EDU_Master
+PaymentHistory
+PURP_Debt Consolidation
+EDU_Doctorate
+Age
+UtilityBillsPaymentHistory
+OWN_Own
+PURP_Other
