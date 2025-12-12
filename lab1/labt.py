@@ -472,6 +472,8 @@ class FWFeatureSelector:
         self.exclude = []
     
     def fit(self, X: pd.DataFrame, Y, eps=np.float128("1e-20")):
+        def uvr(y_t, y_p):
+            return np.sum((y_t - y_p) ** 2) / np.sum((y_p - y_t.mean()) ** 2)
         print(f"Before: {X.shape[1]} features")
         y_ = Y.values
         self.exclude = []
@@ -501,7 +503,7 @@ class FWFeatureSelector:
                     xte, yte = x_[fold[1]], Y[fold[1]]
                     model = LinReg(norm=LinReg.Normalize.Z_Score)
                     model.fit(xtr.values, ytr.values)
-                    score += MSE(yte.values, model.predict(xte.values))
+                    score += uvr(yte.values, model.predict(xte.values))
                 score /= len(folds)
                 if score < wscore:
                     wscore = score
@@ -674,9 +676,9 @@ val = KValidator(LinReg, [{"norm": LinReg.Normalize.Z_Score,}], KFold(5, 42))
 
 fs = FWFeatureSelector()
 print(val.cross_validate(X, Y))
-if not fs.load("exx.txt"):
+if not fs.load("exR.txt"):
     fs.fit(X, Y)
-    fs.save("exx.txt")
+    fs.save("exR.txt")
 X = fs.transform(X)
 X_ = X
 print(val.cross_validate(X, Y))
@@ -696,7 +698,7 @@ def answer():
     X = df.drop(columns=target)
     Y = df[target]
     ffs = FWFeatureSelector()
-    ffs.load("exx.txt")
+    ffs.load("exR.txt")
     X_T = TEST.drop(columns="ID")
     X_T = transform_df(X_T)
     X = ffs.transform(X)
